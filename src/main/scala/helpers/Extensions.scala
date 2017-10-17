@@ -8,7 +8,7 @@ object Extensions {
 
   implicit class SeqExtension[A](val elt: Seq[A]) extends AnyVal {
     def duplicates: Seq[A] =
-      elt.groupBy(identity).filter(_._2.length > 1).keys.toSeq
+      elt.diff(elt.distinct).distinct
   }
 
   implicit class OptionExtension[A](val elt: Option[A]) extends AnyVal {
@@ -34,12 +34,7 @@ object Extensions {
       case Failure(e) => Future.failed(e)
     }
 
-    def toEither: Either[Throwable, A] = elt match {
-      case Success(v) => Right(v)
-      case Failure(e) => Left(e)
-    }
-
-    def toEither[E](f: Throwable => E): Either[E, A] = elt match {
+    def asEither[E](f: Throwable => E): Either[E, A] = elt match {
       case Success(v) => Right(v)
       case Failure(e) => Left(f(e))
     }
@@ -47,7 +42,10 @@ object Extensions {
 
   implicit class FutureExtension[A](val elt: Future[A]) extends AnyVal {
     def await: Try[A] =
-      Try(Await.result(elt, Duration.Inf))
+      await(Duration.Inf)
+
+    def await(atMost: Duration = Duration.Inf): Try[A] =
+      Try(Await.result(elt, atMost))
 
     def failWithOption(implicit executor: ExecutionContext): Future[Option[A]] =
       elt.map(Some(_)).recover { case _ => None }
@@ -61,8 +59,8 @@ object Extensions {
   }
 
   implicit class SeqTryExtension[A](val elt: Seq[Try[A]]) extends AnyVal {
-    def partition: (Seq[Throwable], Seq[A]) = {
-      val (errors, values) = elt.partition(_.isSuccess)
+    def partition(): (Seq[Throwable], Seq[A]) = {
+      val (errors, values) = elt.partition(_.isFailure)
       (errors.collect { case Failure(e) => e }, values.collect { case Success(v) => v })
     }
 
@@ -70,24 +68,25 @@ object Extensions {
       Try(elt.map(_.get))
 
     def sequenceEither: Either[Seq[Throwable], Seq[A]] = {
-      val (errors, values) = partition
+      val (errors, values) = partition()
       if (errors.nonEmpty) Left(errors) else Right(values)
     }
   }
 
   implicit class SeqFutureExtension[A](val elt: Seq[Future[A]]) extends AnyVal {
-    def sequence: Future[Seq[A]] =
+    def sequence(implicit executor: ExecutionContext): Future[Seq[A]] =
       Future.sequence(elt)
   }
 
   implicit class SeqEitherExtension[E, A](val elt: Seq[Either[E, A]]) extends AnyVal {
-    def partition: (Seq[E], Seq[A]) = {
-      val (left, right) = elt.partition(_.isRight)
+    // parenthesis are needed to remove ambiguous calls with standard API
+    def partition(): (Seq[E], Seq[A]) = {
+      val (left, right) = elt.partition(_.isLeft)
       (left.collect { case Left(e) => e }, right.collect { case Right(a) => a })
     }
 
     def sequence: Either[Seq[E], Seq[A]] = {
-      val (left, right) = elt.partition
+      val (left, right) = partition()
       if (left.nonEmpty) Left(left) else Right(right)
     }
 
@@ -105,7 +104,7 @@ object Extensions {
   }
 
   implicit class OptionFutureExtension[A](val elt: Option[Future[A]]) extends AnyVal {
-    def sequence: Future[Option[A]] = elt match {
+    def sequence(implicit executor: ExecutionContext): Future[Option[A]] = elt match {
       case Some(v) => v.map(Some(_))
       case None => Future.successful(None)
     }
@@ -118,20 +117,7 @@ object Extensions {
     }
   }
 
-  implicit class EitherSeqExtension[E, A](val elt: Either[Seq[E], A]) extends AnyVal {
-    def orElse(other: Either[Seq[E], A]): Either[Seq[E], A] = (elt, other) match {
-      case (Right(v), _) => Right(v)
-      case (_, Right(v)) => Right(v)
-      case (Left(e1), Left(e2)) => Left(e1 ++ e2)
-    }
-  }
-
   implicit class EitherThrowableExtension[A](val elt: Either[Throwable, A]) extends AnyVal {
-    def toTry: Try[A] = elt match {
-      case Right(v) => Success(v)
-      case Left(e) => Failure(e)
-    }
-
     def toFuture: Future[A] = elt match {
       case Right(v) => Future.successful(v)
       case Left(e) => Future.failed(e)
