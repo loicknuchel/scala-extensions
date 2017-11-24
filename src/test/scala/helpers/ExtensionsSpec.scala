@@ -53,8 +53,8 @@ class ExtensionsSpec extends FunSpec with Matchers with ScalaFutures {
     }
     describe("toEither") {
       it("should transform Try to Either") {
-        Success(1).asEither(_.getMessage) shouldBe Right(1)
-        Failure(err).asEither(_.getMessage) shouldBe Left("msg")
+        Success(1).toEither(_.getMessage) shouldBe Right(1)
+        Failure(err).toEither(_.getMessage) shouldBe Left("msg")
       }
     }
   }
