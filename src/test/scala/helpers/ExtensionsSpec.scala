@@ -51,12 +51,6 @@ class ExtensionsSpec extends FunSpec with Matchers with ScalaFutures {
         Failure(err).toFuture.failed.value.get.get shouldBe err
       }
     }
-    describe("toEither") {
-      it("should transform Try to Either") {
-        Success(1).toEither(_.getMessage) shouldBe Right(1)
-        Failure(err).toEither(_.getMessage) shouldBe Left("msg")
-      }
-    }
   }
   describe("FutureConverter") {
     describe("await") {

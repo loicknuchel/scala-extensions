@@ -1,5 +1,7 @@
 package helpers
 
+import java.net.URL
+
 import com.typesafe.config._
 
 import scala.collection.JavaConverters._
@@ -138,6 +140,9 @@ case class BetterConfig(config: Config, parentPath: Seq[String] = Seq(), ctx: Op
 
 object BetterConfig {
   def empty = BetterConfig(ConfigFactory.empty)
+
+  def parseUrl(url: URL) =
+    BetterConfig(ConfigFactory.parseURL(url), ctx = Some(url.toString))
 }
 
 case class BetterConfigException(ctx: Option[String],

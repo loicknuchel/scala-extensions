@@ -34,11 +34,6 @@ object Extensions {
       case Failure(e) => Future.failed(e)
     }
 
-    def toEither[E](f: Throwable => E): Either[E, A] = elt match {
-      case Success(v) => Right(v)
-      case Failure(e) => Left(f(e))
-    }
-
     def mapError(f: Throwable => Throwable): Try[A] = elt match {
       case Success(v) => Success(v)
       case Failure(e) => Failure(f(e))
